@@ -1,5 +1,5 @@
 async function handleClick() {
-    let deliveryId = crypto.randomUUID();
+    let deliveryId = Panopto.viewer.data.playlist.initialDeliveryId;
 
     let params = new URLSearchParams();
     params.append("deliveryId", deliveryId);
@@ -22,7 +22,8 @@ async function handleClick() {
     }
 
     let response = await PanoptoApiClient.doFetch("https://utexas.hosted.panopto.com/Panopto/Pages/Viewer/DeliveryInfo.aspx", request);
-    console.log(response);
+    let responseBody = await response.text();
+    console.log(responseBody);
 }
 
 window.DownloadVideo = handleClick;
