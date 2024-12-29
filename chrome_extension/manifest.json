@@ -11,7 +11,7 @@
     },
     "content_scripts": [
         {
-            "js": ["scripts/ffmpeg.js", "scripts/ffmpegutil.js", "scripts/content.js"],
+            "js": ["scripts/content.js"],
             "matches": [
                 "https://*.hosted.panopto.com/Panopto/Pages/*"
             ]
@@ -19,8 +19,8 @@
     ],
     "web_accessible_resources": [
         {
-            "resources": ["scripts/handle-click.js", "scripts/ffmpeg.js", "scripts/814.ffmpeg.js", "scripts/ffmpegutil.js"],
-            "matches": ["<all_urls>"]
+            "resources": ["scripts/handle-click.js"],
+            "matches": ["https://*.hosted.panopto.com/*"]
         }
     ]
   }

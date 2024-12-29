@@ -1,7 +1,8 @@
 
-async function handleClick() {
+async function getVideoUrl() {
     try {
-        let deliveryId = Panopto.viewer.data.playlist.initialDeliveryId;
+        const queryParams = new URLSearchParams(window.location.search);
+        let deliveryId = queryParams.get('id') ?? Panopto.viewer.data.playlist.initialDeliveryId;
 
         let params = new URLSearchParams();
         params.append("deliveryId", deliveryId);
@@ -28,9 +29,11 @@ async function handleClick() {
         let fileName = responseBody.Delivery.Streams[0].Name;
         let videoUrl = responseBody.Delivery.Streams[0].StreamHttpUrl;
 
+        alert(videoUrl);
+
     } catch (e) {
         alert("An error occurred while downloading the video.");
     }
 }
 
-window.DownloadVideo = handleClick;
+window.GetVideoUrl = getVideoUrl;
