@@ -5,4 +5,8 @@ docker-compose -p panopto-downloader up
 NOTE: Traefik depends on the project name being panopto-downloader for networks to work (based on environment variable)
 
 [TO DO]
+ - Add background celery task to clean up abandoned files (might need to add light database too)
  - Add CORS middleware
+ - Add logging / metrics to API. Notifications?
+ - Traefik Let's Encrypt
+ - Domain name? Subdomain of travbend?
