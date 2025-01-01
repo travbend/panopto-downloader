@@ -1,0 +1,102 @@
+services:
+  traefik:
+    image: "traefik:v3.1.6"
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=${PROJECT_NAME}_frontend-network
+      - --providers.file.directory=/etc/traefik/dynamic_conf
+      - --entryPoints.web.address=:80
+      - --entryPoints.websecure.address=:443
+      - --accesslog
+      - --log
+      - --log.level=DEBUG
+    ports:
+      - "${HTTP_PORT}:80"
+      - "${HTTPS_PORT}:443"
+      - "${TRAEFIK_DASHBOARD_PORT}:8080"
+    networks:
+      - frontend-network
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./src/traefik/traefik.yml:/etc/traefik/dynamic_conf/conf.yml:ro"
+      - "${TRAEFIK_CERT_FILE}:/certs/cert.pem:ro"
+      - "${TRAEFIK_KEY_FILE}:/certs/key.pem:ro"
+
+  rabbitmq:
+    image: "rabbitmq:3-management"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - backend-network
+
+  redis:
+    image: "redis:7.4"
+    ports:
+      - "6379:6379"
+    networks:
+      - backend-network
+
+  worker:
+    build: 
+      context: ./
+      dockerfile: ./src/worker/Dockerfile
+      target: development
+    depends_on:
+      - rabbitmq
+      - redis
+    ports:
+      - "5679:5679"
+    networks:
+      - backend-network
+    volumes:
+      - ./src/worker:/app
+      - shared_files:/app/shared_files
+    environment:
+      DEBUG_WORKER: ${DEBUG_WORKER}
+      DEBUG_WAIT: ${DEBUG_WAIT}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_BACKEND_URL: ${CELERY_BACKEND_URL}
+      SHARED_FILES_PATH: ${SHARED_FILES_PATH}
+
+  api:
+    build:
+      context: ./
+      dockerfile: ./src/api/Dockerfile
+      target: development
+    depends_on:
+      - worker
+    ports:
+      - "5678:5678"
+      - "8000:8000"
+    networks:
+      - frontend-network
+      - backend-network
+    volumes:
+      - ./src/api:/app
+      - shared_files:/app/shared_files
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+      - "traefik.http.middlewares.api-stripprefix.stripprefix.prefixes=/${PROJECT_NAME}${API_URL_PREFIX}"
+      - "traefik.http.routers.api-https.rule=Host(`${HOSTNAME}`) && PathPrefix(`/${PROJECT_NAME}`)"
+      - "traefik.http.routers.api-https.entrypoints=websecure"
+      - "traefik.http.routers.api-https.tls=true"
+      - "traefik.http.routers.api-https.middlewares=api-stripprefix"
+    environment:
+      DEBUG_API: ${DEBUG_API}
+      DEBUG_WAIT: ${DEBUG_WAIT}
+      PROJECT_NAME: ${PROJECT_NAME}
+      API_URL_PREFIX: ${API_URL_PREFIX}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_BACKEND_URL: ${CELERY_BACKEND_URL}
+      SHARED_FILES_PATH: ${SHARED_FILES_PATH}
+
+networks:
+  frontend-network:
+  backend-network:
+
+volumes:
+  shared_files:
