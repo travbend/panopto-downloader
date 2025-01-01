@@ -1,1 +1,8 @@
-https://docs.aws.amazon.com/lambda/latest/dg/python-image.html
+
+[TO BUILD + RUN]
+docker-compose build
+docker-compose -p panopto-downloader up
+NOTE: Traefik depends on the project name being panopto-downloader for networks to work (based on environment variable)
+
+[TO DO]
+ - Add CORS middleware

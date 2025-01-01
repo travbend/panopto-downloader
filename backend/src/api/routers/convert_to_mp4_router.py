@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from uuid import UUID, uuid4
+from uuid import UUID
 from worker import worker, get_result
 import os
 from pathlib import Path
@@ -37,6 +37,7 @@ async def result(task_id: UUID, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=400, detail="Task must be successful to download result file")
     
     file_path = result.get()
+    file_name = os.path.basename(file_path)
 
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404)
@@ -49,11 +50,10 @@ async def result(task_id: UUID, background_tasks: BackgroundTasks):
                 yield chunk
 
     return StreamingResponse(file_generator(), media_type="application/octet-stream", headers={
-        "Content-Disposition": "attachment; filename=large_file.mp4"
+        "Content-Disposition": "attachment; filename={}".format(file_name)
     })
-
-    # return FileResponse(file_path, media_type='video/mp4')
 
 def delete_file(file_path):
     if os.path.exists(file_path):
         Path.unlink(file_path)
+        Path.rmdir(os.path.dirname(file_path))
