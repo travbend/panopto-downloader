@@ -6,6 +6,7 @@ from worker import worker, get_result
 import os
 from pathlib import Path
 import aiofiles
+from urllib.parse import urlparse
 
 router = APIRouter(
     prefix="/convert-to-mp4",
@@ -17,9 +18,24 @@ class InitiateRequest(BaseModel):
     video_url: str
     file_name: str
 
+def is_valid_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+        return all([parsed.scheme, parsed.netloc])
+    except ValueError:
+        return False
+    
+def is_valid_unix_filename(filename: str) -> bool:
+    return '/' not in filename and filename != '' and len(filename) <= 255
 
 @router.post("/initiate")
 async def initiate(params: InitiateRequest):
+    if not is_valid_url(params.video_url):
+        raise HTTPException(status_code=400, detail="Invalid video_url") 
+    
+    if not is_valid_unix_filename(params.file_name):
+        raise HTTPException(status_code=400, detail="Invalid file_name") 
+    
     task = worker.send_task('convert_to_mp4.convert', args=[params.video_url, params.file_name])
     return { "task_id": task.id }
 

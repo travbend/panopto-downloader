@@ -29,6 +29,8 @@ async function getVideoUrl() {
         let fileName = responseBody.Delivery.Streams[0].Name;
         let videoUrl = responseBody.Delivery.Streams[0].StreamHttpUrl;
 
+        console.log(videoUrl)
+
         alert(videoUrl);
 
     } catch (e) {
