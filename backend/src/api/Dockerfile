@@ -10,6 +10,9 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # Install pip requirements
+COPY ./src/common/requirements.txt ./requirements-common.txt
+RUN pip install -r ./requirements-common.txt
+
 COPY ./src/api/requirements.txt ./requirements.txt
 RUN pip install -r ./requirements.txt
 
@@ -28,7 +31,7 @@ USER appuser
 
 ENV PYTHONPATH="${PYTHONPATH}:/app"
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 
 # Production stage

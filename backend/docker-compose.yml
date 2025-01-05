@@ -24,6 +24,19 @@ services:
       - "${TRAEFIK_CERT_FILE}:/certs/cert.pem:ro"
       - "${TRAEFIK_KEY_FILE}:/certs/key.pem:ro"
 
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    networks:
+      - backend-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   rabbitmq:
     image: "rabbitmq:3-management"
     ports:
@@ -39,6 +52,22 @@ services:
     networks:
       - backend-network
 
+  migration:
+    build:
+      context: ./
+      dockerfile: ./src/migration/Dockerfile
+    deploy:
+      restart_policy:
+        condition: none
+    depends_on:
+      - postgres
+    networks:
+      - backend-network
+    volumes:
+      - ./src/common:/app/common
+    environment:
+      SQLALCHEMY_CONNECTION_STRING: ${SQLALCHEMY_CONNECTION_STRING}
+
   worker:
     build: 
       context: ./
@@ -47,12 +76,15 @@ services:
     depends_on:
       - rabbitmq
       - redis
+      - postgres
+      - migration
     ports:
       - "5679:5679"
     networks:
       - backend-network
     volumes:
-      - ./src/worker:/app
+      - ./src/worker:/app/worker
+      - ./src/common:/app/common
       - shared_files:/app/shared_files
     environment:
       DEBUG_WORKER: ${DEBUG_WORKER}
@@ -60,6 +92,7 @@ services:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_BACKEND_URL: ${CELERY_BACKEND_URL}
       SHARED_FILES_PATH: ${SHARED_FILES_PATH}
+      SQLALCHEMY_CONNECTION_STRING: ${SQLALCHEMY_CONNECTION_STRING}
 
   worker-beat:
     build: 
@@ -69,10 +102,13 @@ services:
     depends_on:
       - rabbitmq
       - redis
+      - postgres
+      - migration
     networks:
       - backend-network
     volumes:
-      - ./src/worker:/app
+      - ./src/worker:/app/worker
+      - ./src/common:/app/common
       - shared_files:/app/shared_files
     environment:
       DEBUG_WORKER: ${DEBUG_WORKER}
@@ -80,6 +116,7 @@ services:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_BACKEND_URL: ${CELERY_BACKEND_URL}
       SHARED_FILES_PATH: ${SHARED_FILES_PATH}
+      SQLALCHEMY_CONNECTION_STRING: ${SQLALCHEMY_CONNECTION_STRING}
 
   api:
     build:
@@ -87,6 +124,8 @@ services:
       dockerfile: ./src/api/Dockerfile
       target: development
     depends_on:
+      - postgres
+      - migration
       - worker
     ports:
       - "5678:5678"
@@ -95,7 +134,8 @@ services:
       - frontend-network
       - backend-network
     volumes:
-      - ./src/api:/app
+      - ./src/api:/app/api
+      - ./src/common:/app/common
       - shared_files:/app/shared_files
     labels:
       - "traefik.enable=true"
@@ -114,6 +154,7 @@ services:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_BACKEND_URL: ${CELERY_BACKEND_URL}
       SHARED_FILES_PATH: ${SHARED_FILES_PATH}
+      SQLALCHEMY_CONNECTION_STRING: ${SQLALCHEMY_CONNECTION_STRING}
 
 networks:
   frontend-network:
@@ -121,3 +162,4 @@ networks:
 
 volumes:
   shared_files:
+  postgres_data:

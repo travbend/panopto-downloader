@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from uuid import UUID
-from worker import worker, get_result
+from api.worker import worker, get_result
 import os
 from pathlib import Path
 import aiofiles

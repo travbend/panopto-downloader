@@ -1,4 +1,3 @@
 fastapi[standard]
-pydantic_settings
 celery[redis]
 aiofiles

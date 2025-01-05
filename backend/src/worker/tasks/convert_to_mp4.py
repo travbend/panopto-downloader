@@ -1,12 +1,11 @@
-from main import app, redis_client
+from worker.main import app
 import subprocess
 import os
 from pathlib import Path
-from config import settings
-from util import get_result
+from common.config import settings
+from worker.util import get_result
 from datetime import datetime, timezone
 import shutil
-import ffmpeg
 import shlex
 
 CONVERT_TO_MP4_DIR = "convert_to_mp4"

@@ -1,4 +1,4 @@
-from main import app
+from worker.main import app
 from celery.result import AsyncResult
 from uuid import UUID
 

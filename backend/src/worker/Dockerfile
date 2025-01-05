@@ -17,6 +17,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install pip requirements
+COPY ./src/common/requirements.txt ./requirements-common.txt
+RUN pip install -r ./requirements-common.txt
+
 COPY ./src/worker/requirements.txt ./requirements.txt
 RUN pip install -r ./requirements.txt
 
@@ -39,7 +42,7 @@ USER appuser
 ENV PYTHONPATH="${PYTHONPATH}:/app"
 
 # During debugging, this entry point will be overridden. For more information, please refer to https://aka.ms/vscode-docker-python-debug
-CMD ["celery", "-A", "main", "worker", "--concurrency=4", "--loglevel=info"]
+CMD ["celery", "-A", "worker.main", "worker", "--concurrency=4", "--loglevel=info"]
 
 
 # Development stage
@@ -61,6 +64,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install pip requirements
+COPY ./src/common/requirements.txt ./requirements-common.txt
+RUN pip install -r ./requirements-common.txt
+
 COPY ./src/worker/requirements.txt ./requirements.txt
 RUN pip install -r ./requirements.txt
 
@@ -83,7 +89,7 @@ USER appuser
 ENV PYTHONPATH="${PYTHONPATH}:/app"
 
 # During debugging, this entry point will be overridden. For more information, please refer to https://aka.ms/vscode-docker-python-debug
-CMD ["celery", "-A", "main", "beat", "--loglevel=info"]
+CMD ["celery", "-A", "worker.main", "beat", "--loglevel=info"]
 
 
 # Production stage
