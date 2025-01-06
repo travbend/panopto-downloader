@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import aiofiles
 from urllib.parse import urlparse
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from common.data.sqlalchemy.engine import session_maker
 from common.data.sqlalchemy.models.convert_to_mp4 import ConvertMp4Task
@@ -94,7 +94,7 @@ async def result(task_id: UUID, background_tasks: BackgroundTasks):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404)
 
-    background_tasks.add_task(delete_file, file_path)
+    background_tasks.add_task(delete_file, task_id, file_path)
 
     async def file_generator():
         async with aiofiles.open(file_path, mode="rb") as file:
@@ -105,7 +105,17 @@ async def result(task_id: UUID, background_tasks: BackgroundTasks):
         "Content-Disposition": "attachment; filename={}".format(file_name)
     })
 
-def delete_file(file_path):
+def delete_file(task_id, file_path):
     if os.path.exists(file_path):
         Path.unlink(file_path)
         Path.rmdir(os.path.dirname(file_path))
+        
+    with session_maker() as session:
+        with session.begin():
+            statement = (
+                update(ConvertMp4Task)
+                .where(ConvertMp4Task.key == task_id)
+                .values(is_cleaned=True)
+            )
+            session.execute(statement)
+            session.commit()

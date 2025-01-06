@@ -18,4 +18,4 @@ Remove sqlalchemy environment variable from dev machine so that it does not over
 [TODO]
  - Add better logging / metrics to API. Notifications?
  - Traefik Let's Encrypt
- - Domain name? Subdomain of travbend?
+ - Domain name? Subdomain?
