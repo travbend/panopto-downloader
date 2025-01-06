@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     debug_api: bool = False
     debug_worker: bool = False
     debug_wait: bool = False
+    
+    ffmpeg_timeout_seconds: int = 60
+    result_cleanup_delay_seconds: int = 60
+    result_cleanup_cycle_seconds: int = 30
 
     sqlalchemy_connection_string: Optional[str] = None
     celery_broker_url: Optional[str] = None

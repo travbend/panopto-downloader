@@ -1,95 +1,96 @@
 from worker.main import app
 import subprocess
 import os
-from pathlib import Path
 from common.config import settings
-from worker.util import get_result
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import shutil
-import shlex
+from sqlalchemy import select, update, and_
+from common.data.sqlalchemy.engine import session_maker
+from common.data.sqlalchemy.models.convert_to_mp4 import ConvertMp4Task
+from common.constants.convert_to_mp4 import PENDING, COMPLETED, FAILED
 
 CONVERT_TO_MP4_DIR = "convert_to_mp4"
-REDIS_KEY_PREFIX = "convert_to_mp4:"
 
+def delete_dir(dir_path):
+    if os.path.exists(dir_path) and os.path.isdir(dir_path):
+        shutil.rmtree(dir_path)
+        
 @app.task(name="convert_to_mp4.convert", bind=True)
 def convert(self, video_url: str, file_name: str):
     task_id = self.request.id
     output_dir = os.path.join(settings.shared_files_path, CONVERT_TO_MP4_DIR, task_id)
     output_path = os.path.join(output_dir, file_name)
 
-    # task_data = {
-    #     "date_start": datetime.now(timezone.utc)
-    # }
-    # redis_client.hset(REDIS_KEY_PREFIX + task_id, mapping=task_data)
-
-    os.makedirs(output_dir, exist_ok=True)
-
-    subprocess.run(
-        ["ffmpeg", "-loglevel", "error", "-nostdin", "-i", shlex.quote(video_url), "-c", "copy", "-bsf:a", "aac_adtstoasc", shlex.quote(output_path)],
-        check=True,
-        timeout=60
-    )
-
-    # num_tries = 3
-
-    # for i in range(num_tries):
-    #     try:
-    #         (
-    #             ffmpeg
-    #             .input(video_url, timeout=30)
-    #             .output(output_path, format='mp4', codec='copy')
-    #             .global_args(
-    #                 '-reconnect', '1',
-    #                 '-reconnect_streamed', '1',
-    #                 '-reconnect_delay_max', '5',
-    #                 '-rw_timeout', '30000000',
-    #                 '-timeout', '300'
-    #             )
-    #             .run_async(pipe_stdout=True, pipe_stderr=False)
-    #         )
-
-    #         break
-    #     except ffmpeg.Error as e:
-    #         if i + 1 == num_tries:
-    #             print("FFmpeg encountered an error!")
-    #             print("Stderr Output:")
-    #             print(e.stderr.decode())
-    #             raise
-
-    # try:
-    #     os.makedirs(output_dir, exist_ok=True)
-
-    #     subprocess.run(
-    #         ["ffmpeg", "-i", "{}".format(video_url), "-c", "copy", "-bsf:a", "aac_adtstoasc", "{}".format(output_path)],
-    #         check=True
-    #     )
-    # except:
-    #     delete_dir(output_dir)
-
-    #     raise
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+        
+        subprocess.run(
+            ["ffmpeg", "-loglevel", "error", "-nostdin", "-i", video_url, "-c", "copy", "-bsf:a", "aac_adtstoasc", output_path],
+            check=True,
+            timeout=settings.ffmpeg_timeout_seconds
+        )
+    except:
+        delete_dir(output_dir)
+        
+        with session_maker() as session:
+            with session.begin():
+                statement = (
+                    update(ConvertMp4Task)
+                    .where(ConvertMp4Task.key == task_id)
+                    .values(status=FAILED, is_cleaned=True)
+                )
+                session.execute(statement)
+                session.commit()
+        
+        raise
+    
+    with session_maker() as session:
+        with session.begin():
+            statement = select(ConvertMp4Task).filter_by(key=task_id)
+            task = session.scalar(statement)
+            
+            if task.is_cleaned:
+                delete_dir(output_dir)
+            
+            statement = (
+                update(ConvertMp4Task)
+                .where(ConvertMp4Task.key == task_id)
+                .values(status=COMPLETED)
+            )
+            session.execute(statement)
+            session.commit()
 
     return output_path
 
-def delete_dir(dir_path):
-    if os.path.exists(dir_path) and os.path.isdir(dir_path):
-        shutil.rmtree(dir_path)
-
-
 @app.task(name="convert_to_mp4.clean_up_files")
 def clean_up_files():
+    with session_maker() as session:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        start = now - timedelta(seconds=settings.result_cleanup_delay_seconds)
+    
+        statement = select(ConvertMp4Task.key).where(
+            and_(
+                ConvertMp4Task.is_cleaned == False,
+                ConvertMp4Task.updated_at < start
+            )
+        )
+        task_ids = session.scalars(statement).all()
+        session.commit()
+        
     parent_dir = os.path.join(settings.shared_files_path, CONVERT_TO_MP4_DIR)
-    for task_id in os.listdir(parent_dir):
-        if os.path.isdir(os.path.join(parent_dir, task_id)):
-            result = get_result(task_id)
-
-            if result.failed():
-                delete_dir(os.path.join(parent_dir, task_id))
-
-            if result.date_done != None:
-                diff_seconds = (datetime.now(timezone.utc) - result.date_done).seconds
-                if diff_seconds > 30: # TODO: Make configurable
-                    delete_dir(os.path.join(parent_dir, task_id))
+    
+    for task_id in task_ids:
+        delete_dir(os.path.join(parent_dir, str(task_id)))
+        
+        with session_maker() as session:
+            statement = (
+                update(ConvertMp4Task)
+                .where(ConvertMp4Task.key == task_id)
+                .values(is_cleaned=True)
+            )
+            session.execute(statement)
+            session.commit()
 
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(30.0, clean_up_files.s()) # TODO: Make seconds configurable
+    sender.add_periodic_task(settings.result_cleanup_cycle_seconds, clean_up_files.s())
