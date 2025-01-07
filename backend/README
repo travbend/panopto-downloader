@@ -1,5 +1,8 @@
 
 [TO BUILD + RUN]
+For traefik: 
+    create acme.json in backend/src/traefik if does not already exist
+    run "chmod 600 acme.json" (if on windows, run this in the docker terminal in the traefik container)
 docker compose build
 docker compose -p panopto-downloader up
 NOTE: Traefik depends on the project name being panopto-downloader for networks to work (based on environment variable)
@@ -17,5 +20,4 @@ Remove sqlalchemy environment variable from dev machine so that it does not over
 
 [TODO]
  - Add better logging / metrics to API. Notifications?
- - Traefik Let's Encrypt
- - Domain name? Subdomain?
+ - Deployment (dev vs production)
