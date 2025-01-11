@@ -1,0 +1,43 @@
+services:
+  traefik:
+    command:
+      - --api.insecure=true
+      - --accesslog
+      - --log
+      - --log.level=DEBUG
+
+  migration:
+    build:
+      target: development
+    volumes:
+      - ./src/common:/app/common
+
+  worker:
+    build: 
+      target: development
+    volumes:
+      - ./src/worker:/app/worker
+      - ./src/common:/app/common
+    environment:
+      DEBUG_WORKER: ${DEBUG_WORKER}
+      DEBUG_WAIT: ${DEBUG_WAIT}
+
+  worker-beat:
+    build: 
+      target: development-beat
+    volumes:
+      - ./src/worker:/app/worker
+      - ./src/common:/app/common
+    environment:
+      DEBUG_WORKER: ${DEBUG_WORKER}
+      DEBUG_WAIT: ${DEBUG_WAIT}
+
+  api:
+    build:
+      target: development
+    volumes:
+      - ./src/api:/app/api
+      - ./src/common:/app/common
+    environment:
+      DEBUG_API: ${DEBUG_API}
+      DEBUG_WAIT: ${DEBUG_WAIT}

@@ -1,9 +1,11 @@
 
 [TO BUILD + RUN]
-For traefik: 
-    create acme.json in backend/src/traefik if does not already exist
-    run "chmod 600 acme.json" (if on windows, run this in the docker terminal in the traefik container)
-docker compose build
+Create a directory backend/env_config
+Add postgres_password.txt, rabbitmq_password.txt, and redis_password.txt files to this directory
+Add acme.json file (for traefik) to this directory: 
+    create a blank acme.json file on host machine and set the ACME_FILE_PATH env var
+    run "chmod 600 acme.json" to set permissions (if on windows, run this in the docker terminal in the traefik container)
+docker compose --env-file "env_config\.env" -f compose.yaml -f compose.dev.yaml -p panopto-downloader build
 docker compose -p panopto-downloader up
 NOTE: Traefik depends on the project name being panopto-downloader for networks to work (based on environment variable)
 
@@ -21,3 +23,7 @@ Remove sqlalchemy environment variable from dev machine so that it does not over
 [TODO]
  - Add better logging / metrics to API. Notifications?
  - Deployment (dev vs production)
+ - Freeze PIP requirements
+ - Why not cleaning up files?
+ - Remove ports from prod config
+ - Section on how to debug

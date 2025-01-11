@@ -1,0 +1,26 @@
+services:
+  traefik:
+    command:
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      - --certificatesresolvers.myresolver.acme.email=panoptodownloader.swizzle347@passmail.net
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+
+  migration:
+    build:
+      target: production
+
+  worker:
+    build: 
+      target: production
+
+  worker-beat:
+    build: 
+      target: production-beat
+
+  api:
+    build:
+      target: production
+    labels:
+      - "traefik.http.routers.api-https.entrypoints=websecure"
+      - "traefik.http.routers.api-https.tls=true"
+      - "traefik.http.routers.api-https.tls.certresolver=myresolver"

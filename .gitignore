@@ -1,3 +1,4 @@
 backend/.env
 __pycache__
 .idea
+backend/env_config

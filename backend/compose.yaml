@@ -2,18 +2,11 @@ services:
   traefik:
     image: "traefik:v3.2.3"
     command:
-      - --api.insecure=true
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=${PROJECT_NAME}_frontend-network
       - --entryPoints.web.address=:80
       - --entryPoints.websecure.address=:443
-      - --certificatesresolvers.myresolver.acme.tlschallenge=true
-      - --certificatesresolvers.myresolver.acme.email=panoptodownloader.swizzle347@passmail.net
-      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
-      - --accesslog
-      - --log
-      - --log.level=DEBUG
     ports:
       - "${HTTP_PORT}:80"
       - "${HTTPS_PORT}:443"
@@ -22,13 +15,15 @@ services:
       - frontend-network
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./src/traefik/acme.json:/letsencrypt/acme.json"
+      - "${ACME_FILE_PATH}:/letsencrypt/acme.json"
 
   postgres:
     image: postgres:14
+    secrets:
+       - postgres_password
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
@@ -38,7 +33,13 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   rabbitmq:
-    image: "rabbitmq:3-management"
+    build:
+      context: ./src/rabbitmq
+      dockerfile: ./Dockerfile
+    secrets:
+       - rabbitmq_password
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -47,6 +48,9 @@ services:
 
   redis:
     image: "redis:7.4"
+    secrets:
+      - redis_password
+    command: sh -c "exec redis-server --requirepass \"$(cat /run/secrets/redis_password)\""
     ports:
       - "6379:6379"
     networks:
@@ -56,6 +60,7 @@ services:
     build:
       context: ./
       dockerfile: ./src/migration/Dockerfile
+      target: development
     deploy:
       restart_policy:
         condition: none
@@ -63,10 +68,11 @@ services:
       - postgres
     networks:
       - backend-network
-    volumes:
-      - ./src/common:/app/common
+    secrets:
+       - postgres_password
     environment:
-      SQLALCHEMY_CONNECTION_STRING: ${SQLALCHEMY_CONNECTION_STRING}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
 
   worker:
     build: 
@@ -83,16 +89,17 @@ services:
     networks:
       - backend-network
     volumes:
-      - ./src/worker:/app/worker
-      - ./src/common:/app/common
       - shared_files:/app/shared_files
+    secrets:
+       - postgres_password
+       - redis_password
+       - rabbitmq_password
     environment:
-      DEBUG_WORKER: ${DEBUG_WORKER}
-      DEBUG_WAIT: ${DEBUG_WAIT}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-      CELERY_BACKEND_URL: ${CELERY_BACKEND_URL}
       SHARED_FILES_PATH: ${SHARED_FILES_PATH}
-      SQLALCHEMY_CONNECTION_STRING: ${SQLALCHEMY_CONNECTION_STRING}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REDIS_DB: ${REDIS_DB}
+      RABBITMQ_USER: ${RABBITMQ_USER}
 
   worker-beat:
     build: 
@@ -107,16 +114,17 @@ services:
     networks:
       - backend-network
     volumes:
-      - ./src/worker:/app/worker
-      - ./src/common:/app/common
       - shared_files:/app/shared_files
+    secrets:
+       - postgres_password
+       - redis_password
+       - rabbitmq_password
     environment:
-      DEBUG_WORKER: ${DEBUG_WORKER}
-      DEBUG_WAIT: ${DEBUG_WAIT}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-      CELERY_BACKEND_URL: ${CELERY_BACKEND_URL}
       SHARED_FILES_PATH: ${SHARED_FILES_PATH}
-      SQLALCHEMY_CONNECTION_STRING: ${SQLALCHEMY_CONNECTION_STRING}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REDIS_DB: ${REDIS_DB}
+      RABBITMQ_USER: ${RABBITMQ_USER}
 
   api:
     build:
@@ -134,27 +142,26 @@ services:
       - frontend-network
       - backend-network
     volumes:
-      - ./src/api:/app/api
-      - ./src/common:/app/common
       - shared_files:/app/shared_files
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
       - "traefik.http.middlewares.api-stripprefix.stripprefix.prefixes=/${PROJECT_NAME}${API_URL_PREFIX}"
       - "traefik.http.routers.api-https.rule=Host(`${HOSTNAME}`) && PathPrefix(`/${PROJECT_NAME}`)"
-      - "traefik.http.routers.api-https.entrypoints=websecure"
-      - "traefik.http.routers.api-https.tls=true"
-      - "traefik.http.routers.api-https.tls.certresolver=myresolver"
       - "traefik.http.routers.api-https.middlewares=api-stripprefix"
+      - "traefik.http.routers.api-https.entrypoints=web"
+    secrets:
+       - postgres_password
+       - redis_password
+       - rabbitmq_password
     environment:
-      DEBUG_API: ${DEBUG_API}
-      DEBUG_WAIT: ${DEBUG_WAIT}
       PROJECT_NAME: ${PROJECT_NAME}
       API_URL_PREFIX: ${API_URL_PREFIX}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-      CELERY_BACKEND_URL: ${CELERY_BACKEND_URL}
       SHARED_FILES_PATH: ${SHARED_FILES_PATH}
-      SQLALCHEMY_CONNECTION_STRING: ${SQLALCHEMY_CONNECTION_STRING}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REDIS_DB: ${REDIS_DB}
+      RABBITMQ_USER: ${RABBITMQ_USER}
 
 networks:
   frontend-network:
@@ -163,3 +170,12 @@ networks:
 volumes:
   shared_files:
   postgres_data:
+
+secrets:
+  postgres_password:
+    file: ${POSTGRES_PASSWORD_FILE}
+  rabbitmq_password:
+    file: ${RABBITMQ_PASSWORD_FILE}
+  redis_password:
+    file: ${REDIS_PASSWORD_FILE}
+  

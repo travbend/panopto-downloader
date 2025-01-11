@@ -1,4 +1,4 @@
-FROM python:3.12-bookworm
+FROM python:3.12-bookworm as development
 
 # Keeps Python from generating .pyc files in the container
 ENV PYTHONDONTWRITEBYTECODE=1
