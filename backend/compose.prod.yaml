@@ -1,25 +1,30 @@
 services:
   traefik:
     command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=${PROJECT_NAME}_frontend-network
+      - --entryPoints.web.address=:80
+      - --entryPoints.websecure.address=:443
       - --certificatesresolvers.myresolver.acme.tlschallenge=true
       - --certificatesresolvers.myresolver.acme.email=panoptodownloader.swizzle347@passmail.net
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
 
   migration:
     build:
-      target: production
+      target: migration_prod
 
   worker:
     build: 
-      target: production
+      target: worker_default_prod
 
   worker-beat:
     build: 
-      target: production-beat
+      target: worker_beat_prod
 
   api:
     build:
-      target: production
+      target: api_prod
     labels:
       - "traefik.http.routers.api-https.entrypoints=websecure"
       - "traefik.http.routers.api-https.tls=true"

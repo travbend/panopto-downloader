@@ -34,8 +34,8 @@ services:
 
   rabbitmq:
     build:
-      context: ./src/rabbitmq
-      dockerfile: ./Dockerfile
+      context: .
+      dockerfile: ./src/rabbitmq/Dockerfile
     secrets:
        - rabbitmq_password
     environment:
@@ -59,8 +59,7 @@ services:
   migration:
     build:
       context: ./
-      dockerfile: ./src/migration/Dockerfile
-      target: development
+      dockerfile: ./src/common/Dockerfile
     deploy:
       restart_policy:
         condition: none
@@ -77,8 +76,7 @@ services:
   worker:
     build: 
       context: ./
-      dockerfile: ./src/worker/Dockerfile
-      target: development
+      dockerfile: ./src/common/Dockerfile
     depends_on:
       - rabbitmq
       - redis
@@ -95,6 +93,7 @@ services:
        - redis_password
        - rabbitmq_password
     environment:
+      CELERYD_CONCURRENCY: ${WORKER_CONCURRENCY}
       SHARED_FILES_PATH: ${SHARED_FILES_PATH}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_DB: ${POSTGRES_DB}
@@ -104,8 +103,7 @@ services:
   worker-beat:
     build: 
       context: ./
-      dockerfile: ./src/worker/Dockerfile
-      target: development-beat
+      dockerfile: ./src/common/Dockerfile
     depends_on:
       - rabbitmq
       - redis
@@ -129,8 +127,7 @@ services:
   api:
     build:
       context: ./
-      dockerfile: ./src/api/Dockerfile
-      target: development
+      dockerfile: ./src/common/Dockerfile
     depends_on:
       - postgres
       - migration
@@ -149,7 +146,6 @@ services:
       - "traefik.http.middlewares.api-stripprefix.stripprefix.prefixes=/${PROJECT_NAME}${API_URL_PREFIX}"
       - "traefik.http.routers.api-https.rule=Host(`${HOSTNAME}`) && PathPrefix(`/${PROJECT_NAME}`)"
       - "traefik.http.routers.api-https.middlewares=api-stripprefix"
-      - "traefik.http.routers.api-https.entrypoints=web"
     secrets:
        - postgres_password
        - redis_password

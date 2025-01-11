@@ -93,4 +93,4 @@ def clean_up_files():
 
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(settings.result_cleanup_cycle_seconds, clean_up_files.s())
+    sender.add_periodic_task(settings.result_cleanup_cycle_seconds, clean_up_files.s().set(priority=10))

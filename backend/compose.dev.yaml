@@ -5,16 +5,21 @@ services:
       - --accesslog
       - --log
       - --log.level=DEBUG
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=${PROJECT_NAME}_frontend-network
+      - --entryPoints.web.address=:80
+      - --entryPoints.websecure.address=:443
 
   migration:
     build:
-      target: development
+      target: migration_dev
     volumes:
       - ./src/common:/app/common
 
   worker:
     build: 
-      target: development
+      target: worker_default_dev
     volumes:
       - ./src/worker:/app/worker
       - ./src/common:/app/common
@@ -24,7 +29,7 @@ services:
 
   worker-beat:
     build: 
-      target: development-beat
+      target: worker_beat_dev
     volumes:
       - ./src/worker:/app/worker
       - ./src/common:/app/common
@@ -34,10 +39,12 @@ services:
 
   api:
     build:
-      target: development
+      target: api_dev
     volumes:
       - ./src/api:/app/api
       - ./src/common:/app/common
+    labels:
+      - "traefik.http.routers.api-https.entrypoints=web"
     environment:
       DEBUG_API: ${DEBUG_API}
       DEBUG_WAIT: ${DEBUG_WAIT}
