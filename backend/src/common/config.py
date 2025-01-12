@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     result_cleanup_cycle_seconds: int = 30
     
     worker_concurrency: int = 4
+    worker_result_expiry_seconds: int = 300
     
     postgres_db: Optional[str] = None
     postgres_user: Optional[str] = None
