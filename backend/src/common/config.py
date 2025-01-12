@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     result_cleanup_delay_seconds: int = 60
     result_cleanup_cycle_seconds: int = 30
     
+    worker_concurrency: int = 4
+    
     postgres_db: Optional[str] = None
     postgres_user: Optional[str] = None
     postgres_password: Optional[str] = None

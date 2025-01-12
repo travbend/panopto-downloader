@@ -1,4 +1,4 @@
-pydantic_settings
-sqlalchemy
-alembic
-psycopg[binary,pool]
+pydantic_settings==2.7.1
+sqlalchemy==2.0.37
+alembic==1.14.0
+psycopg[binary,pool]==3.2.3

@@ -93,7 +93,7 @@ services:
        - redis_password
        - rabbitmq_password
     environment:
-      CELERYD_CONCURRENCY: ${WORKER_CONCURRENCY}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY}
       SHARED_FILES_PATH: ${SHARED_FILES_PATH}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_DB: ${POSTGRES_DB}

@@ -22,6 +22,5 @@ Remove sqlalchemy environment variable from dev machine so that it does not over
 
 [TODO]
  - Add better logging / metrics to API. Notifications?
- - Freeze PIP requirements
  - Why not cleaning up files?
  - Section in readme on how to debug + env_config
