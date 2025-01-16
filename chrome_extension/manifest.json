@@ -10,21 +10,39 @@
         "128": "images/icon-128.png"
     },
     "permissions": [
-        "https://*.hosted.panopto.com/Panopto/Pages/*"
+        "tabs",
+        "webNavigation",
+        "scripting"
     ],
+    "host_permissions": [
+        "https://*.hosted.panopto.com/*",
+        "https://*.instructure.com/*"
+    ],
+    "background": {
+        "service_worker": "scripts/background.js",
+        "persistent": false
+    },
     "content_scripts": [
         {
-            "js": ["scripts/content.js"],
-            "css": ["scripts/styles.css"],
+            "js": ["scripts/viewer-content.js"],
+            "css": ["scripts/viewer-styles.css"],
             "matches": [
-                "https://*.hosted.panopto.com/Panopto/Pages/*"
+                "https://*.hosted.panopto.com/Panopto/Pages/Viewer.aspx*"
+            ]
+        },
+        {
+            "js": ["scripts/embed-content.js"],
+            "css": ["scripts/embed-styles.css"],
+            "matches": [
+                "https://*.hosted.panopto.com/Panopto/Pages/Embed.aspx*",
+                "https://*.instructure.com/*"
             ]
         }
     ],
     "web_accessible_resources": [
         {
-            "resources": ["scripts/popup.html", "scripts/handle-click.js"],
-            "matches": ["https://*.hosted.panopto.com/*"]
+            "resources": ["scripts/popup.html", "scripts/handle-click.js", "scripts/embed-styles.css"],
+            "matches": ["https://*.hosted.panopto.com/*", "https://*.instructure.com/*"]
         }
     ]
   }

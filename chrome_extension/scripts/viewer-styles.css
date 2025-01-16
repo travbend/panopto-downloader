@@ -36,9 +36,10 @@
     margin: 30px;
 }
 
-#downloaderPopupInner > h1 {
+#downloaderPopupInner > h2 {
     text-align: center;
     font-weight: normal;
+    font-size: x-large;
 }
 
 #popupLoaderContainer {
