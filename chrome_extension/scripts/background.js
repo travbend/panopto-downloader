@@ -1,6 +1,4 @@
-const tryCount = 60;
 const frameSubstring = "hosted.panopto.com";
-let pendingTabs = {};
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -8,20 +6,7 @@ function sleep(ms) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "PANOPTO_DOWNLOADER_INITIATE_INSERT") {
-        if (!(sender.tab.id in pendingTabs)) {
-            pendingTabs[sender.tab.id] = true;
-            executeInsertScript(sender.tab.id);
-        }
-    }
-
-    return false;
-});
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === "PANOPTO_DOWNLOADER_COMPLETE_INSERT") {
-        if (sender.tab.id in pendingTabs) {
-            delete pendingTabs[sender.tab.id];
-        }
+        executeInsertScript(sender.tab.id);
     }
 
     return false;
@@ -37,21 +22,14 @@ async function executeInsertScript(tabId) {
             await sleep(1000);
     }
 
-    for (let i = 0; i < tryCount; i++) {
-        if (!(tabId in pendingTabs))
-            break;
-
-        if (i != 0)
-            await sleep(1000);
-
+    while (true) {
         await chrome.scripting.executeScript({
             target: { tabId: tabId, frameIds: frameIds },
             function: createDownloadButton,
         });
-    }
 
-    if (tabId in pendingTabs)
-        delete pendingTabs[tabId];
+        await sleep(1000);
+    }
 }
 
 async function createDownloadButton() {
@@ -108,6 +86,4 @@ async function createDownloadButton() {
     container.style.display = "none";
     container.innerHTML = html;
     document.body.appendChild(container);
-
-    chrome.runtime.sendMessage({ type: "PANOPTO_DOWNLOADER_COMPLETE_INSERT" });
 }

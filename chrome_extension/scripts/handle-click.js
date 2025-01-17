@@ -1,5 +1,5 @@
 
-const apiUrl = "https://pd.travbend.com/panopto-downloader/api/v1/convert-to-mp4"
+const apiUrl = "https://pd.travbend.com/panopto-downloader/api/v1/convert-to-mp4";
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -35,6 +35,7 @@ async function downloadVideo() {
         await downloadFile(taskId, metaData.fileName);
 
     } catch (e) {
+        console.error(e);
         alert("An error occurred while downloading the video. Please try again later.");
     } finally {
         container.style.display = 'none';
@@ -43,7 +44,12 @@ async function downloadVideo() {
 
 async function getVideoMetadata() {
     const queryParams = new URLSearchParams(window.location.search);
-    let deliveryId = queryParams.get('id') ?? Panopto.viewer.data.playlist.initialDeliveryId;
+    let deliveryId = queryParams.get('id') 
+                     ?? Panopto.viewer.data?.playlist?.initialDeliveryId 
+                     ?? Panopto.Embed?.instance?.deliveryId;
+
+    if (deliveryId == null)
+        throw new Error("Unable to get delivery Id");
 
     let params = new URLSearchParams();
     params.append("deliveryId", deliveryId);
@@ -89,9 +95,8 @@ async function initiateDecode(metaData) {
         body: JSON.stringify(data)
     });
 
-    if (!response.ok || !response.body) {
+    if (!response.ok || !response.body)
         throw new Error('Failed to convert the file');
-    }
 
     let responseBody = await response.json();
 
@@ -103,9 +108,8 @@ async function getDecodeStatus(taskId) {
 
     let response = await fetch(url);
 
-    if (!response.ok || !response.body) {
+    if (!response.ok || !response.body)
         throw new Error('Failed to convert the file');
-    }
 
     let responseBody = await response.json();
     return responseBody.status;
@@ -115,9 +119,8 @@ async function downloadFile(taskId, fileName) {
     const url = apiUrl + '/result/' + taskId;
     const response = await fetch(url);
     
-    if (!response.ok || !response.body) {
+    if (!response.ok || !response.body)
         throw new Error('Failed to download the file');
-    }
 
     const reader = response.body.getReader();
     let receivedLength = 0;
@@ -125,9 +128,9 @@ async function downloadFile(taskId, fileName) {
 
     while (true) {
         const { done, value } = await reader.read();
-        if (done) {
+        if (done)
             break;
-        }
+
         chunks.push(value);
         receivedLength += value.length;
     }

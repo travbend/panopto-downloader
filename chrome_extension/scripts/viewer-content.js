@@ -29,9 +29,8 @@ svgElement.appendChild(pathElement);
 downloadButton.appendChild(svgElement)
 
 let captionsButton = document.getElementById("captionsButton");
-if (captionsButton) {
+if (captionsButton)
     captionsButton.insertAdjacentElement("afterend", downloadButton);
-}
 
 (async () => {
     try {
