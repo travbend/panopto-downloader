@@ -13,69 +13,15 @@ async function downloadVideo() {
     container.style.display = 'flex';
 
     try {
-        const queryParams = new URLSearchParams(window.location.search);
-        let deliveryId = queryParams.get('id') ?? Panopto.viewer.data.playlist.initialDeliveryId;
-
-        let params = new URLSearchParams();
-        params.append("deliveryId", deliveryId);
-        params.append("isLiveNotes", "false");
-        params.append("refreshAuthCookie", "true");
-        params.append("isActiveBroadcast", "false");
-        params.append("isEditing", "false");
-        params.append("isKollectiveAgentInstalled", "false");
-        params.append("isEmbed", "false");
-        params.append("responseType", "json");
-    
-        let request = {
-            body: params,
-            credentials: "include",
-            headers: {
-                "X-Csrf-Token": document.cookie.split("; csrfToken=")[1].split(";")[0]
-            },
-            method: "POST",
-            signal: null
-        }
-    
-        let initResponse = await PanoptoApiClient.doFetch(PanoptoApiClient.getAppRootUrl() +  "/Pages/Viewer/DeliveryInfo.aspx", request);
-        let responseBody = await initResponse.json();
-        let fileName = responseBody.Delivery.Streams[0].Name;
-        let videoUrl = responseBody.Delivery.Streams[0].StreamHttpUrl;
-
-        const initiateUrl = apiUrl + '/initiate';
-        const data = { 
-            'video_url': videoUrl,
-            'file_name': fileName
-        };
-
-        let initiateResponse = await fetch(initiateUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        });
-
-        if (!initiateResponse.ok || !initiateResponse.body) {
-            throw new Error('Failed to convert the file');
-        }
-
-        let initiateRBody = await initiateResponse.json();
-
-        const statusUrl = apiUrl + '/status/' + initiateRBody.task_id;
+        let metaData = await getVideoMetadata();
+        let taskId = await initiateDecode(metaData);
 
         let status = null;
 
         while (true) {
-            let statusResponse = await fetch(statusUrl);
+            status = await getDecodeStatus(taskId)
 
-            if (!statusResponse.ok || !statusResponse.body) {
-                throw new Error('Failed to convert the file');
-            }
-
-            let statusRBody = await statusResponse.json();
-            status = statusRBody.status;
-
-            if (statusRBody.status != "PENDING")
+            if (status != "PENDING")
                 break;
 
             await sleep(1000);
@@ -86,41 +32,115 @@ async function downloadVideo() {
 
         downloadText.textContent = "Downloading file...";
 
-        const resultUrl = apiUrl + '/result/' + initiateRBody.task_id;
-        const resultResponse = await fetch(resultUrl);
-        
-        if (!resultResponse.ok || !resultResponse.body) {
-            throw new Error('Failed to download the file');
-        }
-
-        const reader = resultResponse.body.getReader();
-        let receivedLength = 0;
-        const chunks = [];
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-                break;
-            }
-            chunks.push(value);
-            receivedLength += value.length;
-        }
-
-        let blob = new Blob(chunks);
-        const downloadUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(downloadUrl);
+        await downloadFile(taskId, metaData.fileName);
 
     } catch (e) {
         alert("An error occurred while downloading the video. Please try again later.");
     } finally {
         container.style.display = 'none';
     }
+}
+
+async function getVideoMetadata() {
+    const queryParams = new URLSearchParams(window.location.search);
+    let deliveryId = queryParams.get('id') ?? Panopto.viewer.data.playlist.initialDeliveryId;
+
+    let params = new URLSearchParams();
+    params.append("deliveryId", deliveryId);
+    params.append("isLiveNotes", "false");
+    params.append("refreshAuthCookie", "true");
+    params.append("isActiveBroadcast", "false");
+    params.append("isEditing", "false");
+    params.append("isKollectiveAgentInstalled", "false");
+    params.append("isEmbed", "false");
+    params.append("responseType", "json");
+
+    let request = {
+        body: params,
+        credentials: "include",
+        headers: {
+            "X-Csrf-Token": document.cookie.split("; csrfToken=")[1].split(";")[0]
+        },
+        method: "POST",
+        signal: null
+    }
+
+    let response = await PanoptoApiClient.doFetch(PanoptoApiClient.getAppRootUrl() +  "/Pages/Viewer/DeliveryInfo.aspx", request);
+    let responseBody = await response.json();
+
+    return {
+        fileName: responseBody.Delivery.Streams[0].Name,
+        videoUrl: responseBody.Delivery.Streams[0].StreamHttpUrl
+    }
+}
+
+async function initiateDecode(metaData) {
+    const url = apiUrl + '/initiate';
+    const data = { 
+        'video_url': metaData.videoUrl,
+        'file_name': metaData.fileName
+    };
+
+    let response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
+
+    if (!response.ok || !response.body) {
+        throw new Error('Failed to convert the file');
+    }
+
+    let responseBody = await response.json();
+
+    return responseBody.task_id;
+}
+
+async function getDecodeStatus(taskId) {
+    const url = apiUrl + '/status/' + taskId;
+
+    let response = await fetch(url);
+
+    if (!response.ok || !response.body) {
+        throw new Error('Failed to convert the file');
+    }
+
+    let responseBody = await response.json();
+    return responseBody.status;
+}
+
+async function downloadFile(taskId, fileName) {
+    const url = apiUrl + '/result/' + taskId;
+    const response = await fetch(url);
+    
+    if (!response.ok || !response.body) {
+        throw new Error('Failed to download the file');
+    }
+
+    const reader = response.body.getReader();
+    let receivedLength = 0;
+    const chunks = [];
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+            break;
+        }
+        chunks.push(value);
+        receivedLength += value.length;
+    }
+
+    let blob = new Blob(chunks);
+    const downloadUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(downloadUrl);
 }
 
 window.downloadVideo = downloadVideo;

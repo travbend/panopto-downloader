@@ -1,8 +1,8 @@
 const tryCount = 60;
-
+const frameSubstring = "hosted.panopto.com";
 let pendingTabs = {};
 
-function delay(ms) {
+function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
@@ -32,22 +32,17 @@ async function executeInsertScript(tabId) {
 
     while (frameIds.length == 0) {
         const frames = await chrome.webNavigation.getAllFrames({ tabId: tabId });
-        frameIds = frames.filter((f) => f.url.includes("hosted.panopto.com")).map((f) => f.frameId);
+        frameIds = frames.filter((f) => f.url.includes(frameSubstring)).map((f) => f.frameId);
         if (frameIds.length == 0)
-            await delay(1000);
+            await sleep(1000);
     }
 
-    console.log("Testing 123");
-
-
     for (let i = 0; i < tryCount; i++) {
-        if (!(tabId in pendingTabs)) {
+        if (!(tabId in pendingTabs))
             break;
-        }
 
-        if (i != 0) {
-            await delay(1000);
-        }
+        if (i != 0)
+            await sleep(1000);
 
         await chrome.scripting.executeScript({
             target: { tabId: tabId, frameIds: frameIds },
@@ -55,40 +50,35 @@ async function executeInsertScript(tabId) {
         });
     }
 
-    if (tabId in pendingTabs) {
+    if (tabId in pendingTabs)
         delete pendingTabs[tabId];
-    }
 }
 
-function createDownloadButton() {
-    console.log("Testing 111");
-
+async function createDownloadButton() {
     let navControls = document.getElementById("navigationControls");
-    if (!navControls) {
-        console.log("Testing 222");
-        return;
-    }
-
-    if (document.getElementById("panopto-downloader-button") != null)
+    if (!navControls)
         return;
 
-    console.log("Testing 444");
+    let downloadButtonId = "panoptoDownloaderButton";
+
+    if (document.getElementById(downloadButtonId) != null)
+        return;
+
+    let script = document.createElement("script");
+    script.src = chrome.runtime.getURL("scripts/handle-click.js");
+    script.onload = function() { this.remove(); };
+    (document.head || document.documentElement).appendChild(script);
 
     let downloadButton = document.createElement("div");
-    downloadButton.id = "panopto-downloader-button";
+    downloadButton.id = downloadButtonId;
     downloadButton.classList.add("button-control");
     downloadButton.setAttribute("onclick", "window.downloadVideo()");
-
-    var s = document.createElement('script');
-    s.src = chrome.runtime.getURL('scripts/handle-click.js');
-    s.onload = function() { this.remove(); };
-    (document.head || document.documentElement).appendChild(s);
 
     const SVG_NS = "http://www.w3.org/2000/svg";
 
     const svgElement = document.createElementNS(SVG_NS, "svg");
-    svgElement.setAttribute("width", "24");
-    svgElement.setAttribute("height", "24");
+    svgElement.setAttribute("width", "20");
+    svgElement.setAttribute("height", "20");
     svgElement.setAttribute("viewBox", "0 0 512 512");
     svgElement.setAttribute("fill", "none");
     svgElement.setAttribute("xmlns", SVG_NS);
@@ -104,27 +94,20 @@ function createDownloadButton() {
     downloadButton.appendChild(svgElement)
     navControls.insertBefore(downloadButton, navControls.children[navControls.children.length - 1]);
 
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.type = "text/css";
+    link.href = chrome.runtime.getURL("scripts/embed-styles.css");
+    (document.head || document.documentElement).appendChild(link);
 
-    (async () => {
-        try {
-            const link = document.createElement("link");
-            link.rel = "stylesheet";
-            link.type = "text/css";
-            link.href = chrome.runtime.getURL('scripts/embed-styles.css');
-            document.head.appendChild(link);
+    const response = await fetch(chrome.runtime.getURL("scripts/popup.html"));
+    const html = await response.text();
+    
+    const container = document.createElement("div");
+    container.id = "downloaderContainer";
+    container.style.display = "none";
+    container.innerHTML = html;
+    document.body.appendChild(container);
 
-            const response = await fetch(chrome.runtime.getURL('scripts/popup.html'));
-            const html = await response.text();
-            
-            const container = document.createElement('div');
-            container.id = "downloaderContainer";
-            container.style.display = 'none';
-            container.innerHTML = html;
-            document.body.appendChild(container);
-        } catch (error) {
-            console.error('Error inserting HTML:', error);
-        }
-
-        chrome.runtime.sendMessage({ type: "PANOPTO_DOWNLOADER_COMPLETE_INSERT" });
-    })();
+    chrome.runtime.sendMessage({ type: "PANOPTO_DOWNLOADER_COMPLETE_INSERT" });
 }
