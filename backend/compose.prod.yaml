@@ -7,7 +7,7 @@ services:
       - --entryPoints.web.address=:80
       - --entryPoints.websecure.address=:443
       - --certificatesresolvers.myresolver.acme.tlschallenge=true
-      - --certificatesresolvers.myresolver.acme.email=panoptodownloader.swizzle347@passmail.net
+      - --certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
 
   migration:
