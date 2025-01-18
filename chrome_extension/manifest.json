@@ -1,6 +1,6 @@
 {
     "name": "Panopto Downloader",
-    "description": "Download videos from Panopto and when embedded in Canvas/Instructure.",
+    "description": "Download videos from Panopto, including when embedded in Canvas/Instructure.",
     "version": "1.0",
     "manifest_version": 3,
     "icons": {
