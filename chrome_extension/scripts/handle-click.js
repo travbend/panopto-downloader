@@ -32,7 +32,9 @@ async function downloadVideo() {
 
         downloadText.textContent = "Downloading file...";
 
-        await downloadFile(taskId, metaData.fileName);
+        let downloadUrl = await getDownloadUrl(taskId);
+        await downloadFile(downloadUrl, metaData.fileName);
+        await closeDownload(taskId);
 
     } catch (e) {
         console.error(e);
@@ -115,8 +117,18 @@ async function getDecodeStatus(taskId) {
     return responseBody.status;
 }
 
-async function downloadFile(taskId, fileName) {
+async function getDownloadUrl(taskId) {
     const url = apiUrl + '/result/' + taskId;
+    const response = await fetch(url);
+    
+    if (!response.ok || !response.body)
+        throw new Error('Failed to download the file');
+
+    let responseBody = await response.json();
+    return responseBody.download_url;
+}
+
+async function downloadFile(url, fileName) {
     const response = await fetch(url);
     
     if (!response.ok || !response.body)
@@ -144,6 +156,14 @@ async function downloadFile(taskId, fileName) {
     a.click();
     a.remove();
     URL.revokeObjectURL(downloadUrl);
+}
+
+async function closeDownload(taskId) {
+    const url = apiUrl + '/close/' + taskId;
+    const response = await fetch(url, { method: 'PUT' });
+    
+    if (!response.ok)
+        throw new Error('Failed to download the file');
 }
 
 window.downloadVideo = downloadVideo;
