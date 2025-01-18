@@ -1,0 +1,50 @@
+services:
+  traefik:
+    command:
+      - --api.insecure=true
+      - --accesslog
+      - --log
+      - --log.level=DEBUG
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=${PROJECT_NAME}_frontend-network
+      - --entryPoints.web.address=:80
+      - --entryPoints.websecure.address=:443
+
+  migration:
+    build:
+      target: migration_dev
+    volumes:
+      - ./src/common:/app/common
+
+  worker:
+    build: 
+      target: worker_default_dev
+    volumes:
+      - ./src/worker:/app/worker
+      - ./src/common:/app/common
+    environment:
+      DEBUG_WORKER: ${DEBUG_WORKER}
+      DEBUG_WAIT: ${DEBUG_WAIT}
+
+  worker-beat:
+    build: 
+      target: worker_beat_dev
+    volumes:
+      - ./src/worker:/app/worker
+      - ./src/common:/app/common
+    environment:
+      DEBUG_WORKER: ${DEBUG_WORKER}
+      DEBUG_WAIT: ${DEBUG_WAIT}
+
+  api:
+    build:
+      target: api_dev
+    volumes:
+      - ./src/api:/app/api
+      - ./src/common:/app/common
+    labels:
+      - "traefik.http.routers.api-https.entrypoints=web"
+    environment:
+      DEBUG_API: ${DEBUG_API}
+      DEBUG_WAIT: ${DEBUG_WAIT}

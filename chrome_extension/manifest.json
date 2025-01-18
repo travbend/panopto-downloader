@@ -1,0 +1,47 @@
+{
+    "name": "Panopto Downloader",
+    "description": "Download videos from Panopto, including when embedded in Canvas/Instructure.",
+    "version": "1.0",
+    "manifest_version": 3,
+    "icons": {
+        "16": "images/icon-16.png",
+        "32": "images/icon-32.png",
+        "48": "images/icon-48.png",
+        "128": "images/icon-128.png"
+    },
+    "permissions": [
+        "tabs",
+        "webNavigation",
+        "scripting"
+    ],
+    "host_permissions": [
+        "https://*.hosted.panopto.com/*",
+        "https://*.instructure.com/*"
+    ],
+    "background": {
+        "service_worker": "scripts/background.js",
+        "persistent": false
+    },
+    "content_scripts": [
+        {
+            "js": ["scripts/viewer-content.js"],
+            "css": ["scripts/viewer-styles.css"],
+            "matches": [
+                "https://*.hosted.panopto.com/Panopto/Pages/Viewer.aspx*"
+            ]
+        },
+        {
+            "js": ["scripts/embed-content.js"],
+            "css": ["scripts/embed-styles.css"],
+            "matches": [
+                "https://*.instructure.com/*"
+            ]
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": ["scripts/popup.html", "scripts/handle-click.js", "scripts/embed-styles.css"],
+            "matches": ["https://*.hosted.panopto.com/*", "https://*.instructure.com/*"]
+        }
+    ]
+  }

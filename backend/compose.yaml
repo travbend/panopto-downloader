@@ -1,0 +1,188 @@
+services:
+  traefik:
+    image: "traefik:v3.2.3"
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=${PROJECT_NAME}_frontend-network
+      - --entryPoints.web.address=:80
+      - --entryPoints.websecure.address=:443
+    ports:
+      - "${HTTP_PORT}:80"
+      - "${HTTPS_PORT}:443"
+      - "${TRAEFIK_DASHBOARD_PORT}:8080"
+    networks:
+      - frontend-network
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "${ACME_FILE_PATH}:/letsencrypt/acme.json"
+
+  postgres:
+    image: postgres:14
+    secrets:
+       - postgres_password
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    networks:
+      - backend-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    build:
+      context: .
+      dockerfile: ./src/rabbitmq/Dockerfile
+    secrets:
+       - rabbitmq_password
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - backend-network
+
+  redis:
+    image: "redis:7.4"
+    secrets:
+      - redis_password
+    command: sh -c "exec redis-server --requirepass \"$(cat /run/secrets/redis_password)\""
+    ports:
+      - "6379:6379"
+    networks:
+      - backend-network
+
+  migration:
+    build:
+      context: ./
+      dockerfile: ./src/common/Dockerfile
+    deploy:
+      restart_policy:
+        condition: none
+    depends_on:
+      - postgres
+    networks:
+      - backend-network
+    secrets:
+       - postgres_password
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+  worker:
+    build: 
+      context: ./
+      dockerfile: ./src/common/Dockerfile
+    depends_on:
+      - rabbitmq
+      - redis
+      - postgres
+      - migration
+    ports:
+      - "5679:5679"
+    networks:
+      - backend-network
+    volumes:
+      - shared_files:/app/shared_files
+    secrets:
+       - postgres_password
+       - redis_password
+       - rabbitmq_password
+       - b2_application_key
+    environment:
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY}
+      SHARED_FILES_PATH: ${SHARED_FILES_PATH}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REDIS_DB: ${REDIS_DB}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      B2_BUCKET_NAME: ${B2_BUCKET_NAME}
+      B2_APPLICATION_KEY_ID: ${B2_APPLICATION_KEY_ID}
+
+  worker-beat:
+    build: 
+      context: ./
+      dockerfile: ./src/common/Dockerfile
+    depends_on:
+      - rabbitmq
+      - redis
+      - postgres
+      - migration
+    networks:
+      - backend-network
+    volumes:
+      - shared_files:/app/shared_files
+    secrets:
+       - postgres_password
+       - redis_password
+       - rabbitmq_password
+       - b2_application_key
+    environment:
+      SHARED_FILES_PATH: ${SHARED_FILES_PATH}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REDIS_DB: ${REDIS_DB}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      B2_BUCKET_NAME: ${B2_BUCKET_NAME}
+      B2_APPLICATION_KEY_ID: ${B2_APPLICATION_KEY_ID}
+
+  api:
+    build:
+      context: ./
+      dockerfile: ./src/common/Dockerfile
+    depends_on:
+      - postgres
+      - migration
+      - worker
+    ports:
+      - "5678:5678"
+      - "8000:8000"
+    networks:
+      - frontend-network
+      - backend-network
+    volumes:
+      - shared_files:/app/shared_files
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
+      - "traefik.http.middlewares.api-stripprefix.stripprefix.prefixes=/${PROJECT_NAME}${API_URL_PREFIX}"
+      - "traefik.http.routers.api-https.rule=Host(`${HOSTNAME}`) && PathPrefix(`/${PROJECT_NAME}`)"
+      - "traefik.http.routers.api-https.middlewares=api-stripprefix"
+    secrets:
+       - postgres_password
+       - redis_password
+       - rabbitmq_password
+       - b2_application_key
+    environment:
+      PROJECT_NAME: ${PROJECT_NAME}
+      API_URL_PREFIX: ${API_URL_PREFIX}
+      SHARED_FILES_PATH: ${SHARED_FILES_PATH}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REDIS_DB: ${REDIS_DB}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      B2_BUCKET_NAME: ${B2_BUCKET_NAME}
+      B2_APPLICATION_KEY_ID: ${B2_APPLICATION_KEY_ID}
+
+networks:
+  frontend-network:
+  backend-network:
+
+volumes:
+  shared_files:
+  postgres_data:
+
+secrets:
+  postgres_password:
+    file: ${POSTGRES_PASSWORD_FILE}
+  rabbitmq_password:
+    file: ${RABBITMQ_PASSWORD_FILE}
+  redis_password:
+    file: ${REDIS_PASSWORD_FILE}
+  b2_application_key:
+    file: ${B2_APPLICATION_KEY_FILE}
+  
