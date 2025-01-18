@@ -13,23 +13,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function executeInsertScript(tabId) {
-    let frameIds = [];
+    const frames = await chrome.webNavigation.getAllFrames({ tabId: tabId });
+    let frameIds = frames.filter((f) => f.url.includes(frameSubstring)).map((f) => f.frameId);
+    if (frameIds.length == 0)
+        return;
 
-    while (frameIds.length == 0) {
-        const frames = await chrome.webNavigation.getAllFrames({ tabId: tabId });
-        frameIds = frames.filter((f) => f.url.includes(frameSubstring)).map((f) => f.frameId);
-        if (frameIds.length == 0)
-            await sleep(1000);
-    }
-
-    while (true) {
-        await chrome.scripting.executeScript({
-            target: { tabId: tabId, frameIds: frameIds },
-            function: createDownloadButton,
-        });
-
-        await sleep(1000);
-    }
+    await chrome.scripting.executeScript({
+        target: { tabId: tabId, frameIds: frameIds },
+        function: createDownloadButton,
+    });
 }
 
 async function createDownloadButton() {
