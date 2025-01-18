@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     debug_wait: bool = False
     
     ffmpeg_timeout_seconds: int = 60
-    result_cleanup_delay_seconds: int = 60
-    result_cleanup_cycle_seconds: int = 30
+    result_cleanup_delay_seconds: int = 300
+    result_cleanup_cycle_seconds: int = 60
     
     worker_concurrency: int = 4
     worker_result_expiry_seconds: int = 300
@@ -25,6 +25,11 @@ class Settings(BaseSettings):
 
     redis_db: Optional[int] = 0
     redis_password: Optional[str] = None
+    
+    b2_token_seconds: int = 300
+    b2_bucket_name: Optional[str] = None
+    b2_application_key_id: Optional[str] = None
+    b2_application_key: Optional[str] = None
     
     shared_files_path: Optional[str] = None
     

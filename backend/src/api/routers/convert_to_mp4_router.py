@@ -1,17 +1,15 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from uuid import UUID, uuid4
 from api.worker import worker, get_result
-import os
-from pathlib import Path
-import aiofiles
 from urllib.parse import urlparse
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from common.data.sqlalchemy.engine import session_maker
 from common.data.sqlalchemy.models.convert_to_mp4 import ConvertMp4Task
 from common.constants.convert_to_mp4 import PENDING
+from common.data.b2.engine import b2_bucket
+from common.config import settings
 
 router = APIRouter(
     prefix="/convert-to-mp4",
@@ -73,7 +71,7 @@ async def status(task_id: UUID):
         }
 
 @router.get("/result/{task_id}")
-async def result(task_id: UUID, background_tasks: BackgroundTasks):
+async def result(task_id: UUID):
     with session_maker() as session:
         task = get_task_row(session, task_id)
             
@@ -86,36 +84,40 @@ async def result(task_id: UUID, background_tasks: BackgroundTasks):
     result = get_result(task_id)
 
     if result.state != "SUCCESS":
-        raise HTTPException(status_code=400, detail="Task must be successful to download result file")
+        raise HTTPException(status_code=400, detail="Task must be successful to retrieve result")
     
-    file_path = result.get()
-    file_name = os.path.basename(file_path)
-
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404)
-
-    background_tasks.add_task(delete_file, task_id, file_path)
-
-    async def file_generator():
-        async with aiofiles.open(file_path, mode="rb") as file:
-            while chunk := await file.read(1024 * 1024):  # 1MB chunks
-                yield chunk
-
-    return StreamingResponse(file_generator(), media_type="application/octet-stream", headers={
-        "Content-Disposition": "attachment; filename={}".format(file_name)
-    })
-
-def delete_file(task_id, file_path):
-    if os.path.exists(file_path):
-        Path.unlink(file_path)
-        Path.rmdir(os.path.dirname(file_path))
-        
+    file_name = str(task_id) + '.mp4'
+    authorization = b2_bucket.get_download_authorization(file_name, settings.b2_token_seconds)
+    base_download_url = b2_bucket.get_download_url(file_name)
+    download_url = f"{base_download_url}?Authorization={authorization}"
+    return {
+        "download_url": download_url
+    }
+    
+@router.put("/close/{task_id}")
+def close(task_id: UUID):
     with session_maker() as session:
-        with session.begin():
-            statement = (
-                update(ConvertMp4Task)
-                .where(ConvertMp4Task.key == task_id)
-                .values(is_cleaned=True)
-            )
-            session.execute(statement)
-            session.commit()
+        task = get_task_row(session, task_id)
+            
+        if task == None or task.is_cleaned:
+            return
+        
+    try:
+        file_name = str(task_id) + '.mp4'
+        file_version = b2_bucket.get_file_info_by_name(file_name)
+        b2_bucket.delete_file_version(
+            file_id=file_version.id_,
+            file_name=file_name
+        )
+    except:
+        pass
+    
+    with session_maker() as session:
+        statement = (
+            update(ConvertMp4Task)
+            .where(ConvertMp4Task.key == task_id)
+            .values(is_cleaned=True)
+        )
+        session.execute(statement)
+        session.commit()
+            

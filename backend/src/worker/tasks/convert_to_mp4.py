@@ -8,6 +8,7 @@ from sqlalchemy import select, update, and_
 from common.data.sqlalchemy.engine import session_maker
 from common.data.sqlalchemy.models.convert_to_mp4 import ConvertMp4Task
 from common.constants.convert_to_mp4 import PENDING, COMPLETED, FAILED
+from common.data.b2.engine import b2_bucket
 
 CONVERT_TO_MP4_DIR = "convert_to_mp4"
 
@@ -29,9 +30,12 @@ def convert(self, video_url: str, file_name: str):
             check=True,
             timeout=settings.ffmpeg_timeout_seconds
         )
-    except:
-        delete_dir(output_dir)
         
+        b2_bucket.upload_local_file(
+            local_file=output_path,
+            file_name=task_id + '.mp4'
+        )
+    except:
         with session_maker() as session:
             with session.begin():
                 statement = (
@@ -43,15 +47,11 @@ def convert(self, video_url: str, file_name: str):
                 session.commit()
         
         raise
+    finally:
+        delete_dir(output_dir)
     
     with session_maker() as session:
         with session.begin():
-            statement = select(ConvertMp4Task).filter_by(key=task_id)
-            task = session.scalar(statement)
-            
-            if task.is_cleaned:
-                delete_dir(output_dir)
-            
             statement = (
                 update(ConvertMp4Task)
                 .where(ConvertMp4Task.key == task_id)
@@ -59,8 +59,6 @@ def convert(self, video_url: str, file_name: str):
             )
             session.execute(statement)
             session.commit()
-
-    return output_path
 
 @app.task(name="convert_to_mp4.clean_up_files")
 def clean_up_files():
@@ -81,6 +79,16 @@ def clean_up_files():
     
     for task_id in task_ids:
         delete_dir(os.path.join(parent_dir, str(task_id)))
+        
+        try:
+            file_name = str(task_id) + '.mp4'
+            file_version = b2_bucket.get_file_info_by_name(file_name)
+            b2_bucket.delete_file_version(
+                file_id=file_version.id_,
+                file_name=file_name
+            )
+        except:
+            pass
         
         with session_maker() as session:
             statement = (

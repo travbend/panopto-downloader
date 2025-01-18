@@ -92,6 +92,7 @@ services:
        - postgres_password
        - redis_password
        - rabbitmq_password
+       - b2_application_key
     environment:
       WORKER_CONCURRENCY: ${WORKER_CONCURRENCY}
       SHARED_FILES_PATH: ${SHARED_FILES_PATH}
@@ -99,6 +100,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       REDIS_DB: ${REDIS_DB}
       RABBITMQ_USER: ${RABBITMQ_USER}
+      B2_BUCKET_NAME: ${B2_BUCKET_NAME}
+      B2_APPLICATION_KEY_ID: ${B2_APPLICATION_KEY_ID}
 
   worker-beat:
     build: 
@@ -117,12 +120,15 @@ services:
        - postgres_password
        - redis_password
        - rabbitmq_password
+       - b2_application_key
     environment:
       SHARED_FILES_PATH: ${SHARED_FILES_PATH}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_DB: ${POSTGRES_DB}
       REDIS_DB: ${REDIS_DB}
       RABBITMQ_USER: ${RABBITMQ_USER}
+      B2_BUCKET_NAME: ${B2_BUCKET_NAME}
+      B2_APPLICATION_KEY_ID: ${B2_APPLICATION_KEY_ID}
 
   api:
     build:
@@ -150,6 +156,7 @@ services:
        - postgres_password
        - redis_password
        - rabbitmq_password
+       - b2_application_key
     environment:
       PROJECT_NAME: ${PROJECT_NAME}
       API_URL_PREFIX: ${API_URL_PREFIX}
@@ -158,6 +165,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       REDIS_DB: ${REDIS_DB}
       RABBITMQ_USER: ${RABBITMQ_USER}
+      B2_BUCKET_NAME: ${B2_BUCKET_NAME}
+      B2_APPLICATION_KEY_ID: ${B2_APPLICATION_KEY_ID}
 
 networks:
   frontend-network:
@@ -174,4 +183,6 @@ secrets:
     file: ${RABBITMQ_PASSWORD_FILE}
   redis_password:
     file: ${REDIS_PASSWORD_FILE}
+  b2_application_key:
+    file: ${B2_APPLICATION_KEY_FILE}
   
