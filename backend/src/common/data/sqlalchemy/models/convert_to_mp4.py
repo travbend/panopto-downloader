@@ -1,6 +1,6 @@
 from common.data.sqlalchemy.models.base import Base
 from common.data.sqlalchemy.utils import utcnow
-from sqlalchemy import String, Column, func, BigInteger, DateTime, UUID, Boolean, Index
+from sqlalchemy import String, Column, BigInteger, DateTime, UUID, Boolean, Index
 
 class ConvertMp4Task(Base):
     __tablename__ = "convert_mp4_task"
@@ -9,6 +9,7 @@ class ConvertMp4Task(Base):
     key = Column(UUID, unique=True, nullable=False, index=True)
     status = Column(String(16), nullable=False)
     created_at = Column(DateTime, server_default=utcnow())
+    started_at = Column(DateTime)
     updated_at = Column(DateTime, server_default=utcnow(), onupdate=utcnow())
     is_cleaned = Column(Boolean, nullable=False, server_default='FALSE')
     

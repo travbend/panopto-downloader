@@ -7,6 +7,7 @@ import shutil
 from sqlalchemy import select, update, and_
 from common.data.sqlalchemy.engine import session_maker
 from common.data.sqlalchemy.models.convert_to_mp4 import ConvertMp4Task
+from common.data.sqlalchemy.utils import utcnow
 from common.constants.convert_to_mp4 import PENDING, COMPLETED, FAILED
 from common.data.b2.engine import b2_bucket
 
@@ -19,6 +20,16 @@ def delete_dir(dir_path):
 @app.task(name="convert_to_mp4.convert", bind=True)
 def convert(self, video_url: str, file_name: str):
     task_id = self.request.id
+    
+    with session_maker() as session:
+        statement = (
+            update(ConvertMp4Task)
+            .where(ConvertMp4Task.key == task_id)
+            .values(started_at=utcnow())
+        )
+        session.execute(statement)
+        session.commit()
+    
     output_dir = os.path.join(settings.shared_files_path, CONVERT_TO_MP4_DIR, task_id)
     output_path = os.path.join(output_dir, file_name)
 
