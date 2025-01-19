@@ -174,7 +174,17 @@ networks:
 
 volumes:
   shared_files:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${LOCAL_SHARED_FILES_PATH}
   postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${LOCAL_POSTGRES_DATA_PATH}
 
 secrets:
   postgres_password:
