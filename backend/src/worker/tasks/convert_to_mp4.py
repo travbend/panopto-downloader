@@ -52,7 +52,7 @@ def convert(self, video_url: str, file_name: str):
                 statement = (
                     update(ConvertMp4Task)
                     .where(ConvertMp4Task.key == task_id)
-                    .values(status=FAILED, is_cleaned=True)
+                    .values(status=FAILED, is_cleaned=True, completed_at=utcnow())
                 )
                 session.execute(statement)
                 session.commit()
@@ -66,7 +66,7 @@ def convert(self, video_url: str, file_name: str):
             statement = (
                 update(ConvertMp4Task)
                 .where(ConvertMp4Task.key == task_id)
-                .values(status=COMPLETED)
+                .values(status=COMPLETED, completed_at=utcnow())
             )
             session.execute(statement)
             session.commit()
@@ -80,7 +80,8 @@ def clean_up_files():
         statement = select(ConvertMp4Task.key).where(
             and_(
                 ConvertMp4Task.is_cleaned == False,
-                ConvertMp4Task.updated_at < start
+                ConvertMp4Task.completed_at.isnot(None),
+                ConvertMp4Task.completed_at < start
             )
         )
         task_ids = session.scalars(statement).all()
