@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     debug_worker: bool = False
     debug_wait: bool = False
     
-    ffmpeg_timeout_seconds: int = 60
+    ffmpeg_timeout_seconds: int = 120
     result_cleanup_delay_seconds: int = 300
     result_cleanup_cycle_seconds: int = 60
     
