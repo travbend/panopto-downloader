@@ -26,9 +26,22 @@ app.add_middleware(
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
     received_at = datetime.now(timezone.utc)
+    
+    body_bytes = await request.body()
+    body_str = body_bytes.decode("utf-8")
+    
+    async def new_body():
+        yield body_bytes
+    
+    request = Request(request.scope, receive=new_body())
+
     response = await call_next(request)
     process_time = (datetime.now(timezone.utc) - received_at).total_seconds() * 1000
-    asyncio.create_task(log_to_database(request, response, received_at, process_time))
+    
+    if response.status_code < 400:
+        body_str = None
+    
+    asyncio.create_task(log_to_database(request, response, received_at, process_time, body_str))
     return response
 
 initialize(app)

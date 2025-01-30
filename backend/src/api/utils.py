@@ -3,7 +3,7 @@ from common.data.sqlalchemy.engine import session_maker
 from common.data.sqlalchemy.models.api_request import ApiRequest
 from datetime import datetime
 
-async def log_to_database(request: Request, response: Response, received_at: datetime, duration_ms: float):
+async def log_to_database(request: Request, response: Response, received_at: datetime, duration_ms: float, body_str: str):
     with session_maker() as session:
         row = ApiRequest()
         row.request_method = request.method
@@ -11,5 +11,6 @@ async def log_to_database(request: Request, response: Response, received_at: dat
         row.received_at = received_at.replace(tzinfo=None)
         row.duration_ms = duration_ms
         row.url = str(request.url)
+        row.body = body_str
         session.add(row)
         session.commit()

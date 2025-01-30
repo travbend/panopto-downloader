@@ -12,6 +12,7 @@ class ConvertMp4Task(Base):
     started_at = Column(DateTime)
     completed_at = Column(DateTime)
     is_cleaned = Column(Boolean, nullable=False, server_default='FALSE')
+    error_text = Column(String, nullable=True)
     
     __table_args__ = (
         Index('idx_convert_mp4_task_cleaned_updated_key', 'is_cleaned', 'completed_at', 'key', unique=True),

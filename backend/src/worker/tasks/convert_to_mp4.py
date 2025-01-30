@@ -46,13 +46,13 @@ def convert(self, video_url: str, file_name: str):
             local_file=output_path,
             file_name=task_id + '.mp4'
         )
-    except:
+    except Exception as e:
         with session_maker() as session:
             with session.begin():
                 statement = (
                     update(ConvertMp4Task)
                     .where(ConvertMp4Task.key == task_id)
-                    .values(status=FAILED, is_cleaned=True, completed_at=utcnow())
+                    .values(status=FAILED, is_cleaned=True, completed_at=utcnow(), error_text=str(e))
                 )
                 session.execute(statement)
                 session.commit()
