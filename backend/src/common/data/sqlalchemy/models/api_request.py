@@ -11,3 +11,4 @@ class ApiRequest(Base):
     received_at = Column(DateTime, nullable=False)
     duration_ms = Column(Float, nullable=False)
     url = Column(String(), nullable=False)
+    body = Column(String(), nullable=True)
