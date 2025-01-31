@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 from uuid import UUID, uuid4
 from api.worker import worker, get_result
 from urllib.parse import urlparse
@@ -18,8 +19,8 @@ router = APIRouter(
 )
 
 class InitiateRequest(BaseModel):
-    video_url: str
-    file_name: str
+    video_url: Optional[str]
+    file_name: Optional[str]
 
 def is_valid_url(url: str) -> bool:
     try:
@@ -29,7 +30,7 @@ def is_valid_url(url: str) -> bool:
         return False
     
 def is_valid_unix_filename(filename: str) -> bool:
-    return '/' not in filename and filename != '' and len(filename) <= 255
+    return filename != None and '/' not in filename and filename != '' and len(filename) <= 255
 
 @router.post("/initiate")
 async def initiate(params: InitiateRequest):
