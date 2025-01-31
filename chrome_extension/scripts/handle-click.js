@@ -76,10 +76,15 @@ async function getVideoMetadata() {
     let response = await PanoptoApiClient.doFetch(PanoptoApiClient.getAppRootUrl() +  "/Pages/Viewer/DeliveryInfo.aspx", request);
     let responseBody = await response.json();
 
-    return {
+    let metaData = {
         fileName: responseBody.Delivery.Streams[0].Name,
         videoUrl: responseBody.Delivery.Streams[0].StreamHttpUrl
-    }
+    };
+
+    if (metaData.fileName == null)
+        metaData.fileName = 'video_download.mp4';
+
+    return metaData;
 }
 
 async function initiateDecode(metaData) {
