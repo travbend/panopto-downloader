@@ -20,7 +20,6 @@ router = APIRouter(
 
 class InitiateRequest(BaseModel):
     video_url: Optional[str]
-    file_name: Optional[str]
 
 def is_valid_url(url: str) -> bool:
     try:
@@ -28,17 +27,11 @@ def is_valid_url(url: str) -> bool:
         return all([parsed.scheme, parsed.netloc])
     except ValueError:
         return False
-    
-def is_valid_unix_filename(filename: str) -> bool:
-    return filename != None and '/' not in filename and filename != '' and len(filename) <= 255
 
 @router.post("/initiate")
 async def initiate(params: InitiateRequest):
     if not is_valid_url(params.video_url):
         raise HTTPException(status_code=400, detail="Invalid video_url") 
-    
-    if not is_valid_unix_filename(params.file_name):
-        raise HTTPException(status_code=400, detail="Invalid file_name") 
     
     task_id = uuid4()
     
@@ -49,7 +42,7 @@ async def initiate(params: InitiateRequest):
         session.add(row)
         session.commit()
     
-    worker.send_task('convert_to_mp4.convert', args=[params.video_url, params.file_name], task_id=str(task_id))
+    worker.send_task('convert_to_mp4.convert', args=[params.video_url], task_id=str(task_id))
     return { "task_id": task_id }
 
 def get_task_row(session: Session, task_id: UUID):

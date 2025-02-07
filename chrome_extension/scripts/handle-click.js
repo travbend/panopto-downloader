@@ -14,6 +14,12 @@ async function downloadVideo() {
 
     try {
         let metaData = await getVideoMetadata();
+
+        if (metaData.videoUrl == null || metaData.videoUrl == "") {
+            alert("The video stream URL could not be located.");
+            return;
+        }
+
         let taskId = await initiateDecode(metaData);
 
         let status = null;
@@ -84,14 +90,15 @@ async function getVideoMetadata() {
     if (metaData.fileName == null)
         metaData.fileName = 'video_download.mp4';
 
+    metaData.fileName = metaData.fileName.replace(/\.[^/.]+$/, ".mp4");
+
     return metaData;
 }
 
 async function initiateDecode(metaData) {
     const url = apiUrl + '/initiate';
     const data = { 
-        'video_url': metaData.videoUrl,
-        'file_name': metaData.fileName
+        'video_url': metaData.videoUrl
     };
 
     let response = await fetch(url, {

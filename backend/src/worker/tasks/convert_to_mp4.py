@@ -1,9 +1,9 @@
 from worker.main import app
 import subprocess
 import os
+from pathlib import Path
 from common.config import settings
 from datetime import datetime, timezone, timedelta
-import shutil
 from sqlalchemy import select, update, and_
 from common.data.sqlalchemy.engine import session_maker
 from common.data.sqlalchemy.models.convert_to_mp4 import ConvertMp4Task
@@ -12,13 +12,9 @@ from common.constants.convert_to_mp4 import PENDING, COMPLETED, FAILED
 from common.data.b2.engine import b2_bucket
 
 CONVERT_TO_MP4_DIR = "convert_to_mp4"
-
-def delete_dir(dir_path):
-    if os.path.exists(dir_path) and os.path.isdir(dir_path):
-        shutil.rmtree(dir_path)
         
 @app.task(name="convert_to_mp4.convert", bind=True)
-def convert(self, video_url: str, file_name: str):
+def convert(self, video_url: str):
     task_id = self.request.id
     
     with session_maker() as session:
@@ -30,8 +26,8 @@ def convert(self, video_url: str, file_name: str):
         session.execute(statement)
         session.commit()
     
-    output_dir = os.path.join(settings.shared_files_path, CONVERT_TO_MP4_DIR, task_id)
-    output_path = os.path.join(output_dir, file_name)
+    output_dir = os.path.join(settings.shared_files_path, CONVERT_TO_MP4_DIR)
+    output_path = os.path.join(output_dir, task_id + '.mp4')
 
     try:
         os.makedirs(output_dir, exist_ok=True)
@@ -59,7 +55,7 @@ def convert(self, video_url: str, file_name: str):
         
         raise
     finally:
-        delete_dir(output_dir)
+        Path.unlink(output_path)
     
     with session_maker() as session:
         with session.begin():
@@ -90,7 +86,9 @@ def clean_up_files():
     parent_dir = os.path.join(settings.shared_files_path, CONVERT_TO_MP4_DIR)
     
     for task_id in task_ids:
-        delete_dir(os.path.join(parent_dir, str(task_id)))
+        file_path = os.path.join(parent_dir, str(task_id) + '.mp4')
+        if os.path.exists(file_path):
+            Path.unlink(file_path)
         
         try:
             file_name = str(task_id) + '.mp4'
