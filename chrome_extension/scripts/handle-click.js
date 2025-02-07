@@ -16,7 +16,7 @@ async function downloadVideo() {
         let metaData = await getVideoMetadata();
 
         if (metaData.videoUrl == null || metaData.videoUrl == "") {
-            alert("The video stream URL could not be located.");
+            alert("The video stream URL could not be located or this video type is invalid.");
             return;
         }
 
