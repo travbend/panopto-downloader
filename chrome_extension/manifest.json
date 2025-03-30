@@ -19,6 +19,7 @@
     ],
     "background": {
         "service_worker": "scripts/background.js",
+        "scripts": ["scripts/background.js"],
         "persistent": false
     },
     "content_scripts": [

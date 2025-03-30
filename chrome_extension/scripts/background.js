@@ -20,7 +20,7 @@ async function executeInsertScript(tabId) {
 
     await chrome.scripting.executeScript({
         target: { tabId: tabId, frameIds: frameIds },
-        function: createDownloadButton,
+        func: createDownloadButton,
     });
 }
 
